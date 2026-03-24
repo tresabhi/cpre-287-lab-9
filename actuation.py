@@ -1,4 +1,4 @@
-import adafruit_motor
+import adafruit_motor.servo
 from node_config import *
 import digitalio
 import board

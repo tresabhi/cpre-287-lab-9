@@ -26,4 +26,7 @@ if __name__ == "__main__":
             f"Cooling: {sim.cooling}",
         ]
 
+        for zone in range(node_config.num_zones):
+            values.append(f"x{zone} = {sim.xs[zone]:.2f}")
+
         print("\t".join(values))

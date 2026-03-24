@@ -1,5 +1,6 @@
 from node_config import num_zones, zone_k
 import time
+import math
 from utils import c_to_f
 import actuation
 from math import sin, pi
@@ -43,8 +44,10 @@ class Simulation:
     cooling_dampers = [0] * num_zones
     heating_dampers = [0] * num_zones
 
-    heating = False
-    cooling = False
+    xs = [0] * num_zones
+
+    heating = True
+    cooling = True
 
     # Initializes the simulation.
     def __init__(self, num_zones):
@@ -90,19 +93,25 @@ class Simulation:
             T = self.zone_temps[id]
             k = zone_k[id]
 
-            heating_speed = 1
-            cooling_speed = -1
-            # cooling_damper = self.cooling_dampers[id] / 100
-            # heating_damper = self.heating_dampers[id] / 100
-            heating_damper = 1 if self.heating else 0
-            cooling_damper = 1 if self.cooling else 0
+            servos = actuation.zone_servos[id]
+            angle = 0
+
+            for servo in servos:
+                dir(servo)
+                angle += servo.angle
+
+            angle /= len(servos)
+            x = -(angle - actuation.SERVO_MIN - actuation.SERVO_RANGE / 2) / (
+                actuation.SERVO_RANGE / 2
+            )
+            self.xs[id] = x
+
+            ac_speed = 1
+
+            # print(x)
 
             # units for dT/dt = (1 / s) * kelvin = kelvin / s
-            dT_dt = (
-                -k * (T - self.outside_temp)
-                + (heating_damper * heating_speed)
-                + (cooling_damper * cooling_speed)
-            )
+            dT_dt = -k * (T - self.outside_temp) + ac_speed * x
             # units for dT = kelvin / s * s = kelvin
             # yay! units work out cleanly
             dT = dT_dt * dt
@@ -118,23 +127,20 @@ class Simulation:
         #     self.set_damper("cooling", zone, cooling)
         #     self.set_damper("heating", zone, heating)
 
+        zone_id = 0
         average_temp = 0
-
         for zone in range(num_zones):
             zone_temp = self.zone_temps[zone]
             average_temp += zone_temp
 
-        average_temp /= num_zones
+            percent = (TARGET_TEMP - zone_temp) / 25
+            percent = math.copysign(math.pow(abs(percent), 1 / 3), percent)
+            percent += 0.5
+            percent *= 100
 
-        if self.heating:
-            self.heating = average_temp <= TARGET_TEMP
-        else:
-            self.heating = average_temp <= TARGET_TEMP - TEMPERATURE_THRESHOLD
+            actuation.set_damper(zone, percent)
 
-        if self.cooling:
-            self.cooling = average_temp >= TARGET_TEMP
-        else:
-            self.cooling = average_temp >= TARGET_TEMP + TEMPERATURE_THRESHOLD
+            zone_id += 1
 
         # self.heating = (
         #     (
