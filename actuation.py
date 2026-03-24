@@ -35,7 +35,11 @@ if node_type != NODE_TYPE_SIMULATED:
 # Set the damper for the given zone to the given percent (0 means closed, 100 means fully open)
 def set_damper(zone, percent):
     servo = servos[zone]
+
     x = percent / 100
+    x = 1 - x
+    x = max(0, min(1, x))
+
     phi = SERVO_RANGE * x
     servo.angle = SERVO_MIN + phi
 
