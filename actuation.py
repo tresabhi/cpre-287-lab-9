@@ -19,12 +19,23 @@ SERVO_MAX = 135
 SERVO_RANGE = SERVO_MAX - SERVO_MIN
 
 
-servos = [
-    pwmio.PWMOut(board.A0, frequency=SERVO_FREQUENCY),
-    pwmio.PWMOut(board.A1, frequency=SERVO_FREQUENCY),
-    pwmio.PWMOut(board.A2, frequency=SERVO_FREQUENCY),
+zone_servos = [
+    [
+        #
+        pwmio.PWMOut(board.A0, frequency=SERVO_FREQUENCY)
+    ],
+    [
+        #
+        pwmio.PWMOut(board.A1, frequency=SERVO_FREQUENCY)
+    ],
+    [
+        pwmio.PWMOut(board.A2, frequency=SERVO_FREQUENCY),
+        pwmio.PWMOut(board.A3, frequency=SERVO_FREQUENCY),
+    ],
 ]
-servos = [adafruit_motor.servo.Servo(servo) for servo in servos]
+zone_servos = [
+    [adafruit_motor.servo.Servo(servo) for servo in servos] for servos in zone_servos
+]
 
 if node_type != NODE_TYPE_SIMULATED:
     # Damper initialization - use pins A0, A1, and A2 for zones 1, 2, and 3 respectively
@@ -34,14 +45,16 @@ if node_type != NODE_TYPE_SIMULATED:
 
 # Set the damper for the given zone to the given percent (0 means closed, 100 means fully open)
 def set_damper(zone, percent):
-    servo = servos[zone]
+    servos = zone_servos[zone]
 
     x = percent / 100
     x = 1 - x
     x = max(0, min(1, x))
 
     phi = SERVO_RANGE * x
-    servo.angle = SERVO_MIN + phi
+
+    for servo in servos:
+        servo.angle = SERVO_MIN + phi
 
 
 # ------------End damper control-----------#
