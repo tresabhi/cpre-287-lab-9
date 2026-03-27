@@ -10,9 +10,9 @@ from math import sin, pi
 SIM_SPEED = 1
 
 TEMP_RANGE = 10
-TEMP_AVG = 0
+TEMP_AVG = 35
 
-INTEGRAL_SAMPLES = 15
+INTEGRAL_SAMPLES = 150
 
 TEMPERATURE_THRESHOLD = 2
 
@@ -53,9 +53,9 @@ class Simulation:
     last_e = 0
     int_e = []
 
-    K_p = 0.25
-    K_i = 0.125
-    K_d = 0.25
+    K_p = 1
+    K_i = 0.5
+    K_d = 0.125
 
     # Initializes the simulation.
     def __init__(self, num_zones):
@@ -147,7 +147,7 @@ class Simulation:
             # percentage = min(1, max(0, percentage))
             # percentage *= 100
 
-            e = TARGET_TEMP - zone_temp
+            e = abs(TARGET_TEMP - zone_temp)
             de = e - self.last_e
             self.last_e = e
 
