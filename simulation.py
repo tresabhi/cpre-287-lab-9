@@ -12,6 +12,8 @@ SIM_SPEED = 1
 TEMP_RANGE = 10
 TEMP_AVG = 0
 
+INTEGRAL_SAMPLES = 15
+
 TEMPERATURE_THRESHOLD = 2
 
 # k is the volume of the room divided by the surface area exposed to the outside
@@ -47,6 +49,13 @@ class Simulation:
 
     heating = False
     cooling = False
+
+    last_e = 0
+    int_e = []
+
+    K_p = 0.25
+    K_i = 0.125
+    K_d = 0.25
 
     # Initializes the simulation.
     def __init__(self, num_zones):
@@ -117,7 +126,7 @@ class Simulation:
 
             self.zone_temps[id] += dT
 
-    def _update_dampers(self):
+    def _update_dampers(self, t):
         # for zone in range(num_zones):
         #     zone_temp = self.zone_temps[zone]
         #     cooling = min(1, max(0, zone_temp - TARGET_TEMP)) * 100
@@ -133,10 +142,26 @@ class Simulation:
             zone_temp = self.zone_temps[zone]
             average_temp += zone_temp
 
-            percentage = (TARGET_TEMP - zone_temp) / 25
-            percentage = math.pow(abs(percentage), 1 / 3)
-            percentage = min(1, max(0, percentage))
-            percentage *= 100
+            # percentage = (TARGET_TEMP - zone_temp) / 25
+            # percentage = math.pow(abs(percentage), 1 / 3)
+            # percentage = min(1, max(0, percentage))
+            # percentage *= 100
+
+            e = TARGET_TEMP - zone_temp
+            de = e - self.last_e
+            self.last_e = e
+
+            dt = t - self.last_t
+            de_dt = de / dt
+
+            self.int_e = self.int_e[1:INTEGRAL_SAMPLES]
+            self.int_e += [e * dt]
+            int_e = sum(self.int_e) / len(self.int_e)
+
+            u = self.K_p * e + self.K_i * int_e + self.K_d * de_dt
+            u = min(1, max(0, u))
+
+            percentage = u * 100
 
             actuation.set_damper(zone, percentage)
 
@@ -167,8 +192,10 @@ class Simulation:
         # temperature_measurement_node.py has an elapsed time calculation, and you may be able to use a similar approach here.
 
         # pass in the actual elapsed time.
-        self._update_dampers()
-        self._update_temps(SIM_SPEED * (time.monotonic() - self.initial_time))
+        t = SIM_SPEED * (time.monotonic() - self.initial_time)
+
+        self._update_dampers(t)
+        self._update_temps(t)
 
         actuation.set_heating(self.heating)
         actuation.set_cooling(self.cooling)
