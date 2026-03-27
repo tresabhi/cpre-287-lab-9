@@ -10,7 +10,7 @@ from math import sin, pi
 SIM_SPEED = 1
 
 TEMP_RANGE = 10
-TEMP_AVG = 35
+TEMP_AVG = 0
 
 INTEGRAL_SAMPLES = 150
 
@@ -50,11 +50,11 @@ class Simulation:
     heating = False
     cooling = False
 
-    last_e = 0
-    int_e = []
+    last_e = [0] * num_zones
+    int_e = [[]] * num_zones
 
     K_p = 1
-    K_i = 0.5
+    K_i = 1
     K_d = 0.125
 
     # Initializes the simulation.
@@ -148,15 +148,15 @@ class Simulation:
             # percentage *= 100
 
             e = abs(TARGET_TEMP - zone_temp)
-            de = e - self.last_e
-            self.last_e = e
+            de = e - self.last_e[zone]
+            self.last_e[zone] = e
 
             dt = t - self.last_t
             de_dt = de / dt
 
-            self.int_e = self.int_e[1:INTEGRAL_SAMPLES]
-            self.int_e += [e * dt]
-            int_e = sum(self.int_e) / len(self.int_e)
+            self.int_e[zone] = self.int_e[zone][1:INTEGRAL_SAMPLES]
+            self.int_e[zone] += [e * dt]
+            int_e = sum(self.int_e[zone])
 
             u = self.K_p * e + self.K_i * int_e + self.K_d * de_dt
             u = min(1, max(0, u))
