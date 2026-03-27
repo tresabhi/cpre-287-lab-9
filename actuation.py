@@ -48,13 +48,12 @@ def set_damper(zone, percent):
     servos = zone_servos[zone]
 
     x = percent / 100
-    x = 1 - x
     x = max(0, min(1, x))
 
-    phi = SERVO_RANGE * x
+    angle = SERVO_MIN + SERVO_RANGE * x
 
     for servo in servos:
-        servo.angle = SERVO_MIN + phi
+        servo.angle = angle
 
 
 # ------------End damper control-----------#

@@ -27,6 +27,7 @@ if __name__ == "__main__":
         ]
 
         for zone in range(node_config.num_zones):
-            values.append(f"x{zone} = {sim.xs[zone]:.2f}")
+            # values.append(f"theta_{zone} = {sim.angles[zone]:.2f}")
+            values.append(f"x_{zone} = {sim.xs[zone]:.2f}")
 
         print("\t".join(values))

@@ -10,7 +10,7 @@ from math import sin, pi
 SIM_SPEED = 1
 
 TEMP_RANGE = 10
-TEMP_AVG = 30
+TEMP_AVG = 0
 
 TEMPERATURE_THRESHOLD = 2
 
@@ -41,13 +41,12 @@ class Simulation:
     initial_time = time.monotonic()
     zone_temps = {}
     outside_temp = 0
-    cooling_dampers = [0] * num_zones
-    heating_dampers = [0] * num_zones
 
     xs = [0] * num_zones
+    angles = [0] * num_zones
 
-    heating = True
-    cooling = True
+    heating = False
+    cooling = False
 
     # Initializes the simulation.
     def __init__(self, num_zones):
@@ -67,13 +66,6 @@ class Simulation:
         print("set damper")
         # implement
 
-        if type == "cooling":
-            self.cooling_dampers[zone_id] = percent
-        elif type == "heating":
-            self.heating_dampers[zone_id] = percent
-        else:
-            raise Exception(f"Invalid damper type: {type}")
-
     # Update the temperatures of the zones, given that elapsed_time_ms milliseconds
     # have elapsed since this was previously called.
     last_t = 0
@@ -88,6 +80,14 @@ class Simulation:
         self.last_t = t
         self.outside_temp = TEMP_RANGE * sin(2 * pi * (t_days - 0.25)) + TEMP_AVG
 
+        ac_speed = 0
+
+        if self.heating:
+            ac_speed += 1
+
+        if self.cooling:
+            ac_speed -= 1
+
         # Update all temps
         for id in range(num_zones):
             T = self.zone_temps[id]
@@ -97,16 +97,15 @@ class Simulation:
             angle = 0
 
             for servo in servos:
+                # DO NOT REMOVE LOC BELOW. it magically makes servo.angle work
                 dir(servo)
                 angle += servo.angle
 
             angle /= len(servos)
-            x = -(angle - actuation.SERVO_MIN - actuation.SERVO_RANGE / 2) / (
-                actuation.SERVO_RANGE / 2
-            )
-            self.xs[id] = x
+            x = (angle - actuation.SERVO_MIN) / actuation.SERVO_RANGE
 
-            ac_speed = 1
+            self.angles[id] = angle
+            self.xs[id] = x
 
             # print(x)
 
@@ -129,37 +128,37 @@ class Simulation:
 
         zone_id = 0
         average_temp = 0
+
         for zone in range(num_zones):
             zone_temp = self.zone_temps[zone]
             average_temp += zone_temp
 
-            percent = (TARGET_TEMP - zone_temp) / 25
-            percent = math.copysign(math.pow(abs(percent), 1 / 3), percent)
-            percent += 0.5
-            percent *= 100
+            percentage = (TARGET_TEMP - zone_temp) / 25
+            percentage = math.pow(abs(percentage), 1 / 3)
+            percentage = min(1, max(0, percentage))
+            percentage *= 100
 
-            actuation.set_damper(zone, percent)
+            actuation.set_damper(zone, percentage)
 
             zone_id += 1
 
-        # self.heating = (
-        #     (
-        #         # heater is already on; wait till desired temp is reached
-        #         average_temp
-        #         >= TARGET_TEMP + TEMPERATURE_THRESHOLD
-        #     )
-        #     if self.heating
-        #     else (
-        #         # heater is off; turn it on only if temp falls beyond the threshold
-        #         average_temp
-        #         < TARGET_TEMP - TEMPERATURE_THRESHOLD
-        #     )
-        # )
-        # self.cooling = (
-        #     (average_temp <= TARGET_TEMP)
-        #     if self.cooling
-        #     else (average_temp > TARGET_TEMP + TEMPERATURE_THRESHOLD)
-        # )
+        average_temp /= num_zones
+
+        self.heating = average_temp < TARGET_TEMP
+        self.cooling = average_temp > TARGET_TEMP
+
+        # if self.heating:
+        #     # heater is already on; keep it on till we go well over the target temperature
+        #     self.heating = average_temp < TARGET_TEMP + TEMPERATURE_THRESHOLD
+        # else:
+        #     # heating is off right now, turn it on if we get too cold
+        #     self.heating = average_temp < TARGET_TEMP
+
+        # # same logic as above but for cooling
+        # if self.cooling:
+        #     self.cooling = average_temp > TARGET_TEMP - TEMPERATURE_THRESHOLD
+        # else:
+        #     self.cooling = average_temp > TARGET_TEMP
 
     # Runs periodic simulation actions.
     def loop(self):
